@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoDrop // Tactical Location Text Capsule</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        radar: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            border: '#1f2937',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            cyan: '#06b6d4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+                linear-gradient(rgba(31, 41, 55, 0.25) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(31, 41, 55, 0.25) 1px, transparent 1px);
+            background-size: 100% 100%, 28px 28px, 28px 28px;
+            color: #f3f4f6;
+        }
+        @keyframes radar-pulse {
+            0% { transform: scale(0.85); opacity: 0.8; }
+            70% { transform: scale(2.2); opacity: 0; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 9999px;
+            border: 2px solid #10b981;
+            animation: radar-pulse 2s infinite;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #10b981; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-black">
+
+    <!-- Top Navigation & Telemetry Header -->
+    <header class="border-b border-gray-800/80 bg-gray-900/80 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand -->
+            <div class="flex items-center gap-3">
+                <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 pulse-ring">
+                    <i class="fa-solid fa-satellite-dish text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-mono font-bold text-lg tracking-wider text-white">GEODROP</h1>
+                        <span id="cloud-badge" class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                            Connecting...
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400">Tactical GPS Text Capsule Network</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2">
+                <button id="toggle-sim-btn" class="text-xs font-mono px-3 py-2 rounded-lg border border-gray-700 bg-gray-800/70 hover:bg-gray-800 text-gray-300 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-sliders text-amber-400"></i>
+                    <span id="sim-btn-text">Sim Mode: OFF</span>
+                </button>
+                <button id="open-guide-btn" class="text-xs font-mono px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 transition">
+                    <i class="fa-brands fa-github text-sm"></i>
+                    <span>GitHub Setup Guide</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Live GPS Bar -->
+        <div class="bg-gray-950/90 border-t border-gray-800/60 px-4 py-2">
+            <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <div class="flex items-center gap-1.5">
+                        <span id="gps-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                        <span class="text-gray-400">POS:</span>
+                        <span id="display-coords" class="text-emerald-400 font-semibold">Acquiring GPS lock...</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-gray-400">
+                        <span>ACC:</span>
+                        <span id="display-acc" class="text-gray-200">-- m</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="refresh-gps-btn" class="text-gray-300 hover:text-emerald-400 transition flex items-center gap-1 px-2 py-0.5 rounded bg-gray-900 border border-gray-800">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        <span>Refresh GPS</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Simulated / Manual GPS Drawer -->
+            <div id="sim-drawer" class="hidden max-w-4xl mx-auto pt-3 pb-1 mt-2 border-t border-gray-800/80">
+                <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div class="text-xs">
+                        <span class="font-mono font-bold text-amber-300 uppercase"><i class="fa-solid fa-flask mr-1"></i>Developer GPS Override Active</span>
+                        <p class="text-gray-300 mt-0.5">Test dropping and unlocking capsules from a single device or desktop without physically walking.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <div>
+                            <label class="block text-[10px] font-mono text-gray-400">LATITUDE</label>
+                            <input id="sim-lat" type="number" step="0.000001" class="w-28 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs font-mono text-white focus:border-amber-400 focus:outline-none" value="51.500000">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-mono text-gray-400">LONGITUDE</label>
+                            <input id="sim-lng" type="number" step="0.000001" class="w-28 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs font-mono text-white focus:border-amber-400 focus:outline-none" value="6.540000">
+                        </div>
+                        <button id="apply-sim-btn" class="mt-3.5 px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-mono font-bold text-xs transition">
+                            Set Coords
+                        </button>
+                        <button id="nudge-sim-btn" title="Simulate walking ~35m North-East" class="mt-3.5 px-2.5 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-amber-500/30 font-mono text-xs transition">
+                            +35m NE
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
+
+        <!-- Navigation Tabs -->
+        <div class="grid grid-cols-2 gap-3 p-1.5 bg-gray-900/90 border border-gray-800 rounded-xl">
+            <button id="tab-drop-btn" class="py-3 px-4 rounded-lg font-mono text-sm font-semibold flex items-center justify-center gap-2 transition bg-emerald-500 text-gray-950 shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>1. DROP A NOTE (.TXT)</span>
+            </button>
+            <button id="tab-scan-btn" class="py-3 px-4 rounded-lg font-mono text-sm font-semibold flex items-center justify-center gap-2 transition text-gray-400 hover:text-white hover:bg-gray-800/60">
+                <i class="fa-solid fa-radar"></i>
+                <i class="fa-solid fa-compass"></i>
+                <span>2. SCAN NEARBY (<span id="nearby-count-badge">0</span>)</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: DROP A NOTE (WRITE TAB) -->
+        <section id="panel-drop" class="space-y-5">
+            <div class="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+                <div class="flex items-center justify-between border-b border-gray-800 pb-4 mb-5">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-thumbtack text-emerald-400"></i>
+                            Anchor New Text Capsule
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Your message will be locked to your exact current coordinates. Anyone who walks within the unlock radius can download the `.txt` file.</p>
+                    </div>
+                    <span class="hidden sm:inline-block font-mono text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 border border-gray-700">
+                        UTF-8 // .TXT
+                    </span>
+                </div>
+
+                <form id="drop-form" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Filename / Title -->
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-gray-400 mb-1.5">File Name / Capsule Title *</label>
+                            <div class="relative">
+                                <input id="note-title" type="text" required maxlength="50" placeholder="secret_stash_coordinates" 
+                                    class="w-full bg-gray-950 border border-gray-800 rounded-xl pl-3.5 pr-12 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 font-mono">
+                                <span class="absolute right-3 top-2.5 text-xs font-mono text-emerald-400 select-none">.txt</span>
+                            </div>
+                        </div>
+
+                        <!-- Author Alias -->
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-gray-400 mb-1.5">Operator Alias (Optional)</label>
+                            <input id="note-author" type="text" maxlength="30" placeholder="Anonymous Wanderer" 
+                                class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- Unlock Radius Selector -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-400">Geofence Unlock Radius</label>
+                            <span class="text-xs font-mono text-emerald-400" id="radius-hint">50 Meters (Recommended for phone GPS)</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2.5">
+                            <button type="button" data-radius="25" class="radius-btn py-2 px-3 rounded-xl font-mono text-xs border border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 transition">
+                                25m (Strict)
+                            </button>
+                            <button type="button" data-radius="50" class="radius-btn py-2 px-3 rounded-xl font-mono text-xs border border-emerald-500 bg-emerald-500/15 text-emerald-300 font-bold transition">
+                                50m (Standard)
+                            </button>
+                            <button type="button" data-radius="100" class="radius-btn py-2 px-3 rounded-xl font-mono text-xs border border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 transition">
+                                100m (Wide)
+                            </button>
+                            <button type="button" data-radius="500" class="radius-btn py-2 px-3 rounded-xl font-mono text-xs border border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 transition">
+                                500m (Area)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Text Content -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-400">Text File Content *</label>
+                            <span id="char-counter" class="text-xs font-mono text-gray-500">0 / 2000 chars</span>
+                        </div>
+                        <textarea id="note-content" rows="6" required maxlength="2000" placeholder="Write your message, clue, ASCII art, or log entry here. It will be compiled into a downloadable .txt file tied to these exact coordinates..."
+                            class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3.5 text-sm font-mono text-gray-100 placeholder-gray-600 focus:outline-none focus:border-emerald-500"></textarea>
+                    </div>
+
+                    <!-- Coordinates Snapshot Card -->
+                    <div class="bg-gray-950/90 border border-gray-800/90 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                <i class="fa-solid fa-location-dot"></i>
+                            </div>
+                            <div class="text-xs font-mono">
+                                <div class="text-gray-400">TARGET DROP COORDINATES:</div>
+                                <div id="form-coords-preview" class="text-white font-semibold mt-0.5">Waiting for GPS...</div>
+                            </div>
+                        </div>
+                        <button type="button" id="preview-local-txt-btn" class="text-xs font-mono px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-download text-emerald-400"></i>
+                            <span>Test Local .txt Download</span>
+                        </button>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submit-drop-btn" class="w-full py-3.5 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-mono font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+                        <span>DROP .TXT CAPSULE AT CURRENT LOCATION</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 2: SCAN NEARBY (PICKUP TAB) -->
+        <section id="panel-scan" class="hidden space-y-5">
+            <!-- Radar Header Bar -->
+            <div class="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <i class="fa-solid fa-compass-drafting text-2xl animate-pulse"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Proximity Signal Scanner</h2>
+                        <p class="text-xs text-gray-400">Walk within a capsule's geofence radius to unlock and download its `.txt` payload.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button id="seed-demo-btn" class="text-xs font-mono px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                        <span>Spawn Test Capsules Nearby</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="grid grid-cols-3 gap-3 font-mono">
+                <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5">
+                    <div class="text-[11px] text-gray-400">UNLOCKED IN RANGE</div>
+                    <div id="stat-unlocked" class="text-2xl font-bold text-emerald-400 mt-0.5">0</div>
+                </div>
+                <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5">
+                    <div class="text-[11px] text-gray-400">LOCKED SIGNALS</div>
+                    <div id="stat-locked" class="text-2xl font-bold text-amber-400 mt-0.5">0</div>
+                </div>
+                <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5">
+                    <div class="text-[11px] text-gray-400">CLOSEST SIGNAL</div>
+                    <div id="stat-closest" class="text-2xl font-bold text-white mt-0.5">--</div>
+                </div>
+            </div>
+
+            <!-- Capsules List -->
+            <div id="capsules-container" class="space-y-3">
+                <!-- Dynamically populated by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-4xl w-full mx-auto px-4 py-6 border-t border-gray-800/60 text-xs text-gray-500 font-mono flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>GEODROP PROTOCOL // HAVERSINE GEODESIC ENGINE</div>
+        <div id="footer-uid">DEVICE ID: INITIALIZING...</div>
+    </footer>
+
+    <!-- MODAL 1: VIEW & DOWNLOAD .TXT CAPSULE -->
+    <div id="preview-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-emerald-500/40 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
+            <div class="px-5 py-4 bg-gray-950 border-b border-gray-800 flex items-center justify-between">
+                <div class="flex items-center gap-2 font-mono text-sm text-emerald-400 font-bold">
+                    <i class="fa-solid fa-lock-open"></i>
+                    <span id="modal-filename">capsule.txt</span>
+                </div>
+                <button id="close-preview-modal" class="text-gray-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-2 text-xs font-mono bg-gray-950 p-3 rounded-xl border border-gray-800">
+                    <div><span class="text-gray-500">AUTHOR:</span> <span id="modal-author" class="text-gray-200"></span></div>
+                    <div><span class="text-gray-500">DISTANCE:</span> <span id="modal-distance" class="text-emerald-400"></span></div>
+                    <div class="col-span-2"><span class="text-gray-500">COORDS:</span> <span id="modal-coords" class="text-gray-300"></span></div>
+                </div>
+                <div>
+                    <div class="text-xs font-mono text-gray-400 mb-1">RAW .TXT PAYLOAD:</div>
+                    <pre id="modal-content" class="bg-gray-950 border border-gray-800 rounded-xl p-4 text-xs font-mono text-emerald-300 whitespace-pre-wrap max-h-60 overflow-y-auto"></pre>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button id="modal-download-btn" class="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-mono font-bold text-xs flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-file-arrow-down text-sm"></i>
+                        <span>DOWNLOAD .TXT FILE TO DEVICE</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: GITHUB & FIREBASE SETUP INSTRUCTIONS -->
+    <div id="guide-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 bg-gray-950 border-b border-gray-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-brands fa-github text-xl text-emerald-400"></i>
+                    <h3 class="font-mono font-bold text-base text-white">How to Host on GitHub Pages (2-Phone Setup)</h3>
+                </div>
+                <button id="close-guide-modal" class="text-gray-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-5 text-sm text-gray-300 leading-relaxed">
+                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-xs">
+                    <strong class="text-emerald-300 font-mono uppercase block mb-1">✓ Works Right Now in Preview!</strong>
+                    In this preview window, cloud database sync is already connected and live. You can test dropping and picking up notes immediately! Follow the steps below when you are ready to publish this `index.html` file to your own GitHub account.
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-mono font-bold text-white text-xs uppercase tracking-wider text-emerald-400">Step 1: Save This File as index.html</h4>
+                    <p class="text-xs text-gray-400">Copy the complete code from the editor into a file named <code class="text-white bg-gray-800 px-1.5 py-0.5 rounded">index.html</code> on your computer. Because everything (HTML, Tailwind CSS, and JavaScript) is packed into one self-contained file, you only need this single file.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-mono font-bold text-white text-xs uppercase tracking-wider text-emerald-400">Step 2: Create a Free Firebase Database (For Cross-Phone Sync)</h4>
+                    <p class="text-xs text-gray-400">So Phone A can save a note and Phone B can detect it at those coordinates, both phones need a shared cloud database:</p>
+                    <ol class="list-decimal list-inside text-xs text-gray-300 space-y-1.5 bg-gray-950 p-3.5 rounded-xl border border-gray-800">
+                        <li>Go to <a href="https://console.firebase.google.com" target="_blank" class="text-emerald-400 underline">console.firebase.google.com</a> and click <strong>Create a project</strong>.</li>
+                        <li>In the left sidebar, click <strong>Build &rarr; Authentication &rarr; Get Started</strong> and enable <strong>Anonymous</strong> sign-in.</li>
+                        <li>Click <strong>Build &rarr; Firestore Database &rarr; Create Database</strong> and start in <strong>Test mode</strong>.</li>
+                        <li>Go to <strong>Project Settings</strong> (gear icon) &rarr; scroll down to <strong>Your apps</strong> &rarr; click the Web <code class="text-emerald-300">&lt;/&gt;</code> icon to get your <code class="text-emerald-300">firebaseConfig</code> object.</li>
+                        <li>Paste your config into the <code class="text-emerald-300">https://schatz-4190d-default-rtdb.europe-west1.firebasedatabase.app/</code> variable inside <code class="text-white">index.html</code> (around line 335).</li>
+                    </ol>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-mono font-bold text-white text-xs uppercase tracking-wider text-emerald-400">Step 3: Upload to GitHub & Enable GitHub Pages (HTTPS Required)</h4>
+                    <p class="text-xs text-gray-400">Mobile browsers (iOS Safari & Android Chrome) <strong>require HTTPS</strong> to allow <code class="text-white">navigator.geolocation</code> GPS access. GitHub Pages gives you HTTPS for free:</p>
+                    <ol class="list-decimal list-inside text-xs text-gray-300 space-y-1.5 bg-gray-950 p-3.5 rounded-xl border border-gray-800">
+                        <li>Create a new public repository on <a href="https://github.com/new" target="_blank" class="text-emerald-400 underline">GitHub.com</a> (e.g., <code class="text-white">geodrop-app</code>).</li>
+                        <li>Click <strong>Add file &rarr; Upload files</strong> and drag your <code class="text-white">index.html</code> file in, then click <strong>Commit changes</strong>.</li>
+                        <li>Go to your repository's <strong>Settings &rarr; Pages</strong> (on the left menu).</li>
+                        <li>Under <strong>Branch</strong>, select <code class="text-white">main</code> and click <strong>Save</strong>.</li>
+                        <li>Wait 60 seconds, then open <code class="text-emerald-300">https://your-username.github.io/geodrop-app/</code> on both phones!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="px-6 py-3 bg-gray-950 border-t border-gray-800 flex justify-end">
+                <button id="done-guide-btn" class="px-4 py-2 rounded-lg bg-emerald-500 text-gray-950 font-mono font-bold text-xs">
+                    Got It, Let's Go
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Non-Blocking Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 bg-gray-900 border border-emerald-500/50 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-sm">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <div class="text-xs font-mono" id="toast-msg">Capsule anchored!</div>
+    </div>
+
+    <!-- APPLICATION & FIREBASE SCRIPT -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ============================================================================
+        // 1. GITHUB PAGES CONFIGURATION
+        // When hosting on GitHub Pages, paste your own Firebase config object inside
+        // GITHUB_FIREBASE_CONFIG below so multiple phones can share capsules globally.
+        // ============================================================================
+        const GITHUB_FIREBASE_CONFIG = {
+            apiKey: "",            // Paste from Firebase Console -> Project Settings
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
+        };
+
+        // Application State
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let useCloud = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'geodrop-production';
+
+        // GPS State (Defaults to Kamp-Lintfort / Rhine-Ruhr coordinates if GPS is blocked)
+        let currentPos = {
+            lat: 51.500000,
+            lng: 6.540000,
+            accuracy: 12,
+            isSimulated: false
+        };
+        let selectedRadius = 50;
+        let capsules = [];
+        let activeModalCapsule = null;
+
+        // DOM Elements
+        const cloudBadge = document.getElementById('cloud-badge');
+        const gpsDot = document.getElementById('gps-dot');
+        const displayCoords = document.getElementById('display-coords');
+        const displayAcc = document.getElementById('display-acc');
+        const formCoordsPreview = document.getElementById('form-coords-preview');
+        const simDrawer = document.getElementById('sim-drawer');
+        const simBtnText = document.getElementById('sim-btn-text');
+        const simLatInput = document.getElementById('sim-lat');
+        const simLngInput = document.getElementById('sim-lng');
+        const nearbyCountBadge = document.getElementById('nearby-count-badge');
+        const capsulesContainer = document.getElementById('capsules-container');
+
+        // Toast Helper (Never use alert!)
+        function showToast(message, isWarning = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-msg');
+            msg.textContent = message;
+            icon.className = isWarning 
+                ? "fa-solid fa-triangle-exclamation text-amber-400 text-lg"
+                : "fa-solid fa-circle-check text-emerald-400 text-lg";
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3800);
+        }
+
+        // ============================================================================
+        // 2. GEODESIC MATH: HAVERSINE DISTANCE & COMPASS BEARING
+        // ============================================================================
+        function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth radius in meters
+            const toRad = deg => deg * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function calculateCompassDirection(lat1, lon1, lat2, lon2) {
+            const toRad = deg => deg * Math.PI / 180;
+            const toDeg = rad => rad * 180 / Math.PI;
+            const dLon = toRad(lon2 - lon1);
+            const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+            const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+                      Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+            const brng = (toDeg(Math.atan2(y, x)) + 360) % 360;
+            const directions = [
+                { name: 'North', arrow: '↑' },
+                { name: 'North-East', arrow: '↗' },
+                { name: 'East', arrow: '→' },
+                { name: 'South-East', arrow: '↘' },
+                { name: 'South', arrow: '↓' },
+                { name: 'South-West', arrow: '↙' },
+                { name: 'West', arrow: '←' },
+                { name: 'North-West', arrow: '↖' }
+            ];
+            const index = Math.round(brng / 45) % 8;
+            return { ...directions[index], bearing: Math.round(brng) };
+        }
+
+        // ============================================================================
+        // 3. .TXT FILE GENERATION & BLOB DOWNLOAD
+        // ============================================================================
+        function sanitizeFilename(name) {
+            const clean = (name || 'capsule').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+            return clean.endsWith('.txt') ? clean : `${clean}.txt`;
+        }
+
+        function formatTxtPayload(capsule) {
+            const dateStr = new Date(capsule.timestamp || Date.now()).toISOString();
+            return [
+                `====================================================`,
+                `GEODROP LOCATION TEXT CAPSULE`,
+                `FILE: ${sanitizeFilename(capsule.title)}`,
+                `AUTHOR: ${capsule.author || 'Anonymous Operator'}`,
+                `ANCHORED AT: ${Number(capsule.lat).toFixed(6)}, ${Number(capsule.lng).toFixed(6)}`,
+                `UNLOCK RADIUS: ${capsule.radius} meters`,
+                `TIMESTAMP: ${dateStr}`,
+                `====================================================`,
+                ``,
+                capsule.content,
+                ``
+            ].join('\n');
+        }
+
+        function triggerTxtDownload(capsule) {
+            const fileContent = formatTxtPayload(capsule);
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = sanitizeFilename(capsule.title);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`Downloaded ${sanitizeFilename(capsule.title)}`);
+        }
+
+        // ============================================================================
+        // 4. LIVE GPS & SIMULATOR CONTROLLER
+        // ============================================================================
+        function updateGpsUI() {
+            const coordStr = `${currentPos.lat.toFixed(6)}°, ${currentPos.lng.toFixed(6)}°`;
+            displayCoords.textContent = coordStr + (currentPos.isSimulated ? ' (SIMULATED)' : '');
+            displayAcc.textContent = `±${Math.round(currentPos.accuracy)}m`;
+            formCoordsPreview.textContent = `${coordStr} (Radius: ${selectedRadius}m)`;
+            gpsDot.className = currentPos.isSimulated
+                ? "w-2 h-2 rounded-full bg-amber-400"
+                : "w-2 h-2 rounded-full bg-emerald-400";
+            renderCapsulesList();
+        }
+
+        function requestLiveGps() {
+            if (currentPos.isSimulated) {
+                showToast("Disable Sim Mode first to use hardware GPS.", true);
+                return;
+            }
+            if (!navigator.geolocation) {
+                showToast("Geolocation not supported by this browser. Using fallback coordinates.", true);
+                updateGpsUI();
+                return;
+            }
+            displayCoords.textContent = "Locking satellites...";
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    currentPos.lat = pos.coords.latitude;
+                    currentPos.lng = pos.coords.longitude;
+                    currentPos.accuracy = pos.coords.accuracy || 10;
+                    simLatInput.value = currentPos.lat.toFixed(6);
+                    simLngInput.value = currentPos.lng.toFixed(6);
+                    updateGpsUI();
+                    showToast("Live GPS coordinates locked.");
+                },
+                (err) => {
+                    // Graceful fallback if user denies permission or runs in restricted iframe
+                    updateGpsUI();
+                    showToast("Live GPS unavailable in this frame; using default coordinates (Sim Ready).", true);
+                },
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+            );
+        }
+
+        // ============================================================================
+        // 5. FIREBASE CLOUD INITIALIZATION (RULE 1, 2, 3 COMPLIANT)
+        // ============================================================================
+        async function initCloudStorage() {
+            try {
+                let configToUse = null;
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    configToUse = JSON.parse(__firebase_config);
+                } else if (GITHUB_FIREBASE_CONFIG.apiKey) {
+                    configToUse = GITHUB_FIREBASE_CONFIG;
+                }
+
+                if (!configToUse) {
+                    cloudBadge.textContent = "Local Demo Mode (Configure Firebase for 2-Phone Sync)";
+                    cloudBadge.className = "text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30";
+                    seedInitialDemoCapsules();
+                    return;
+                }
+
+                const app = initializeApp(configToUse);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // RULE 3: Authenticate FIRST before any Firestore query
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) {
+                        useCloud = true;
+                        document.getElementById('footer-uid').textContent = `OPERATOR UID: ${user.uid}`;
+                        cloudBadge.textContent = "Cloud Sync: LIVE";
+                        cloudBadge.className = "text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+                        subscribeToCapsules();
+                    }
+                });
+            } catch (error) {
+                console.error("Cloud init fallback:", error);
+                cloudBadge.textContent = "Offline Sandbox";
+                seedInitialDemoCapsules();
+            }
+        }
+
+        function subscribeToCapsules() {
+            if (!currentUser || !db) return;
+            // RULE 1: Strict public path
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'geodrops');
+            // RULE 2: Simple collection query, sort/filter in memory
+            onSnapshot(
+                colRef,
+                (snapshot) => {
+                    const list = [];
+                    snapshot.forEach(docSnap => {
+                        list.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                    capsules = list;
+                    renderCapsulesList();
+                },
+                (err) => {
+                    console.error("Firestore listener error:", err);
+                    showToast("Error syncing cloud capsules.", true);
+                }
+            );
+        }
+
+        // ============================================================================
+        // 6. DROP & SCAN UI RENDERING
+        // ============================================================================
+        function renderCapsulesList() {
+            nearbyCountBadge.textContent = capsules.length;
+
+            if (capsules.length === 0) {
+                document.getElementById('stat-unlocked').textContent = '0';
+                document.getElementById('stat-locked').textContent = '0';
+                document.getElementById('stat-closest').textContent = '--';
+                capsulesContainer.innerHTML = `
+                    <div class="bg-gray-900/50 border border-dashed border-gray-800 rounded-2xl p-10 text-center space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-gray-800/80 text-gray-400 flex items-center justify-center mx-auto">
+                            <i class="fa-solid fa-satellite text-xl"></i>
+                        </div>
+                        <div class="font-mono text-sm text-gray-300">No GeoDrop capsules detected in database yet.</div>
+                        <p class="text-xs text-gray-500 max-w-md mx-auto">Drop a new note in Tab 1, or click "Spawn Test Capsules Nearby" above to generate sample caches around your current coordinates.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Enrich with live Haversine distance & bearing
+            const enriched = capsules.map(c => {
+                const dist = calculateDistanceMeters(currentPos.lat, currentPos.lng, Number(c.lat), Number(c.lng));
+                const radius = Number(c.radius) || 50;
+                const isUnlocked = dist <= radius;
+                const compass = calculateCompassDirection(currentPos.lat, currentPos.lng, Number(c.lat), Number(c.lng));
+                return { ...c, distance: dist, radius, isUnlocked, compass };
+            }).sort((a, b) => a.distance - b.distance);
+
+            const unlockedCount = enriched.filter(c => c.isUnlocked).length;
+            const lockedCount = enriched.length - unlockedCount;
+            const closestDist = enriched[0] ? `${Math.round(enriched[0].distance)}m` : '--';
+
+            document.getElementById('stat-unlocked').textContent = unlockedCount;
+            document.getElementById('stat-locked').textContent = lockedCount;
+            document.getElementById('stat-closest').textContent = closestDist;
+
+            capsulesContainer.innerHTML = enriched.map(item => {
+                const safeTitle = sanitizeFilename(item.title);
+                const distRounded = Math.round(item.distance);
+                const walkDist = Math.max(1, Math.round(item.distance - item.radius));
+
+                if (item.isUnlocked) {
+                    return `
+                        <div class="bg-gray-900/90 border-2 border-emerald-500/60 rounded-2xl p-4 sm:p-5 shadow-lg shadow-emerald-500/5 transition">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-lock-open text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-mono font-bold text-base text-white">${safeTitle}</span>
+                                            <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500 text-gray-950 font-bold">
+                                                UNLOCKED (${distRounded}m away)
+                                            </span>
+                                        </div>
+                                        <div class="text-xs font-mono text-gray-400 mt-1">
+                                            Dropped by <span class="text-gray-200">${item.author || 'Anonymous'}</span> • Geofence: ${item.radius}m • Coords: ${Number(item.lat).toFixed(5)}, ${Number(item.lng).toFixed(5)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                    <button data-action="view" data-id="${item.id}" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-emerald-300 border border-emerald-500/30 font-mono text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-eye"></i>
+                                        <span>Inspect</span>
+                                    </button>
+                                    <button data-action="download" data-id="${item.id}" class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-mono text-xs font-bold transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-download"></i>
+                                        <span>Download .txt</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="bg-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 opacity-95">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0 mt-0.5 font-mono text-lg font-bold">
+                                        ${item.compass.arrow}
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-mono font-bold text-base text-gray-300">${safeTitle}</span>
+                                            <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                                <i class="fa-solid fa-lock mr-1"></i>LOCKED SIGNAL (${distRounded}m)
+                                            </span>
+                                        </div>
+                                        <div class="text-xs font-mono text-amber-300/90 mt-1">
+                                            Walk <strong>${walkDist}m ${item.compass.name} (${item.compass.bearing}°)</strong> to enter the ${item.radius}m unlock zone
+                                        </div>
+                                        <div class="text-[11px] font-mono text-gray-500 mt-0.5">
+                                            Target Coords: ${Number(item.lat).toFixed(5)}, ${Number(item.lng).toFixed(5)} • Payload Encrypted Until Arrival
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                    <button data-action="walk" data-id="${item.id}" class="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-mono text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-person-walking-arrow-right"></i>
+                                        <span>Simulate Walking Here</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        // ============================================================================
+        // 7. EVENT LISTENERS & USER ACTIONS
+        // ============================================================================
+        // Tab Switching
+        const tabDropBtn = document.getElementById('tab-drop-btn');
+        const tabScanBtn = document.getElementById('tab-scan-btn');
+        const panelDrop = document.getElementById('panel-drop');
+        const panelScan = document.getElementById('panel-scan');
+
+        function switchTab(tab) {
+            if (tab === 'drop') {
+                panelDrop.classList.remove('hidden');
+                panelScan.classList.add('hidden');
+                tabDropBtn.className = "py-3 px-4 rounded-lg font-mono text-sm font-semibold flex items-center justify-center gap-2 transition bg-emerald-500 text-gray-950 shadow-lg shadow-emerald-500/20";
+                tabScanBtn.className = "py-3 px-4 rounded-lg font-mono text-sm font-semibold flex items-center justify-center gap-2 transition text-gray-400 hover:text-white hover:bg-gray-800/60";
+            } else {
+                panelDrop.classList.add('hidden');
+                panelScan.classList.remove('hidden');
+                tabScanBtn.className = "py-3 px-4 rounded-lg font-mono text-sm font-semibold flex items-center justify-center gap-2 transition bg-emerald-500 text-gray-950 shadow-lg shadow-emerald-500/20";
+                tabDropBtn.className = "py-3 px-4 rounded-lg font-mono text-sm font-semibold flex items-center justify-center gap-2 transition text-gray-400 hover:text-white hover:bg-gray-800/60";
+                renderCapsulesList();
+            }
+        }
+
+        tabDropBtn.addEventListener('click', () => switchTab('drop'));
+        tabScanBtn.addEventListener('click', () => switchTab('scan'));
+
+        // Radius Buttons
+        document.querySelectorAll('.radius-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedRadius = Number(btn.dataset.radius);
+                document.querySelectorAll('.radius-btn').forEach(b => {
+                    b.className = "radius-btn py-2 px-3 rounded-xl font-mono text-xs border border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 transition";
+                });
+                btn.className = "radius-btn py-2 px-3 rounded-xl font-mono text-xs border border-emerald-500 bg-emerald-500/15 text-emerald-300 font-bold transition";
+                updateGpsUI();
+            });
+        });
+
+        // Character Counter
+        const noteContentInput = document.getElementById('note-content');
+        noteContentInput.addEventListener('input', () => {
+            document.getElementById('char-counter').textContent = `${noteContentInput.value.length} / 2000 chars`;
+        });
+
+        // Local Preview .txt Download Button
+        document.getElementById('preview-local-txt-btn').addEventListener('click', () => {
+            const title = document.getElementById('note-title').value.trim() || 'preview_note';
+            const content = noteContentInput.value.trim() || 'Sample GeoDrop text file content.';
+            const author = document.getElementById('note-author').value.trim() || 'Local Operator';
+            triggerTxtDownload({
+                title,
+                content,
+                author,
+                lat: currentPos.lat,
+                lng: currentPos.lng,
+                radius: selectedRadius,
+                timestamp: Date.now()
+            });
+        });
+
+        // Submit Drop Form
+        document.getElementById('drop-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('note-title').value.trim();
+            const content = noteContentInput.value.trim();
+            const author = document.getElementById('note-author').value.trim() || 'Anonymous Operator';
+
+            if (!title || !content) return;
+
+            const newCapsule = {
+                title: sanitizeFilename(title),
+                content,
+                author,
+                lat: Number(currentPos.lat),
+                lng: Number(currentPos.lng),
+                radius: Number(selectedRadius),
+                timestamp: Date.now(),
+                creatorUid: currentUser ? currentUser.uid : 'local'
+            };
+
+            const submitBtn = document.getElementById('submit-drop-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>ENCRYPTING & ANCHORING...</span>`;
+
+            try {
+                if (useCloud && currentUser && db) {
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'geodrops');
+                    await addDoc(colRef, newCapsule);
+                } else {
+                    capsules.push({ id: crypto.randomUUID(), ...newCapsule });
+                    renderCapsulesList();
+                }
+
+                document.getElementById('note-title').value = '';
+                noteContentInput.value = '';
+                document.getElementById('char-counter').textContent = '0 / 2000 chars';
+                showToast(`Anchored ${newCapsule.title} at current GPS coordinates!`);
+                switchTab('scan');
+            } catch (err) {
+                console.error("Failed to save drop:", err);
+                showToast("Error saving to cloud.", true);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-base"></i><span>DROP .TXT CAPSULE AT CURRENT LOCATION</span>`;
+            }
+        });
+
+        // Capsule List Actions (Inspect, Download, Simulate Walk)
+        capsulesContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const id = btn.dataset.id;
+            const found = capsules.find(c => c.id === id);
+            if (!found) return;
+
+            if (action === 'download') {
+                triggerTxtDownload(found);
+            } else if (action === 'view') {
+                activeModalCapsule = found;
+                const dist = Math.round(calculateDistanceMeters(currentPos.lat, currentPos.lng, found.lat, found.lng));
+                document.getElementById('modal-filename').textContent = sanitizeFilename(found.title);
+                document.getElementById('modal-author').textContent = found.author || 'Anonymous';
+                document.getElementById('modal-distance').textContent = `${dist}m (Within ${found.radius}m fence)`;
+                document.getElementById('modal-coords').textContent = `${Number(found.lat).toFixed(6)}, ${Number(found.lng).toFixed(6)}`;
+                document.getElementById('modal-content').textContent = formatTxtPayload(found);
+                document.getElementById('preview-modal').classList.remove('hidden');
+            } else if (action === 'walk') {
+                // Teleport simulator to the target coordinates
+                currentPos.isSimulated = true;
+                currentPos.lat = Number(found.lat);
+                currentPos.lng = Number(found.lng);
+                simLatInput.value = currentPos.lat.toFixed(6);
+                simLngInput.value = currentPos.lng.toFixed(6);
+                simDrawer.classList.remove('hidden');
+                simBtnText.textContent = "Sim Mode: ON";
+                updateGpsUI();
+                showToast(`Simulated walking to ${sanitizeFilename(found.title)}! Signal Unlocked.`);
+            }
+        });
+
+        // Preview Modal Controls
+        document.getElementById('close-preview-modal').addEventListener('click', () => {
+            document.getElementById('preview-modal').classList.add('hidden');
+        });
+        document.getElementById('modal-download-btn').addEventListener('click', () => {
+            if (activeModalCapsule) triggerTxtDownload(activeModalCapsule);
+        });
+
+        // GitHub Setup Guide Modal Controls
+        const guideModal = document.getElementById('guide-modal');
+        document.getElementById('open-guide-btn').addEventListener('click', () => guideModal.classList.remove('hidden'));
+        document.getElementById('close-guide-modal').addEventListener('click', () => guideModal.classList.add('hidden'));
+        document.getElementById('done-guide-btn').addEventListener('click', () => guideModal.classList.add('hidden'));
+
+        // Simulator Drawer Controls
+        document.getElementById('toggle-sim-btn').addEventListener('click', () => {
+            currentPos.isSimulated = !currentPos.isSimulated;
+            simDrawer.classList.toggle('hidden', !currentPos.isSimulated);
+            simBtnText.textContent = currentPos.isSimulated ? "Sim Mode: ON" : "Sim Mode: OFF";
+            if (!currentPos.isSimulated) {
+                requestLiveGps();
+            } else {
+                simLatInput.value = currentPos.lat.toFixed(6);
+                simLngInput.value = currentPos.lng.toFixed(6);
+                updateGpsUI();
+            }
+        });
+
+        document.getElementById('apply-sim-btn').addEventListener('click', () => {
+            const lat = parseFloat(simLatInput.value);
+            const lng = parseFloat(simLngInput.value);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                currentPos.isSimulated = true;
+                currentPos.lat = lat;
+                currentPos.lng = lng;
+                updateGpsUI();
+                showToast("Simulated GPS coordinates updated.");
+            }
+        });
+
+        document.getElementById('nudge-sim-btn').addEventListener('click', () => {
+            currentPos.isSimulated = true;
+            currentPos.lat += 0.00025; // ~28m North
+            currentPos.lng += 0.00025; // ~20m East
+            simLatInput.value = currentPos.lat.toFixed(6);
+            simLngInput.value = currentPos.lng.toFixed(6);
+            updateGpsUI();
+            showToast("Walked ~35m North-East.");
+        });
+
+        document.getElementById('refresh-gps-btn').addEventListener('click', () => {
+            currentPos.isSimulated = false;
+            simDrawer.classList.add('hidden');
+            simBtnText.textContent = "Sim Mode: OFF";
+            requestLiveGps();
+        });
+
+        // Spawn Demo Capsules Button (Drops 1 unlocked + 1 locked capsule near user)
+        async function seedInitialDemoCapsules() {
+            const sample1 = {
+                title: "welcome_beacon.txt",
+                author: "System HQ",
+                content: "Congrats! You are standing inside the geofence of this welcome capsule.\n\nTry walking (or using the Simulator) to reach the locked bunker_codes.txt signal 145m North-East of here!",
+                lat: currentPos.lat + 0.00008, // ~9m away (Unlocked)
+                lng: currentPos.lng + 0.00008,
+                radius: 50,
+                timestamp: Date.now()
+            };
+            const sample2 = {
+                title: "bunker_codes.txt",
+                author: "Agent Zero",
+                content: "TOP SECRET GEODROP PAYLOAD:\n\nSector 7 Gate Code: 8841-ALPHA\nSupply Cache buried 3 paces behind the old oak tree.",
+                lat: currentPos.lat + 0.0011, // ~145m away (Locked!)
+                lng: currentPos.lng + 0.0011,
+                radius: 50,
+                timestamp: Date.now()
+            };
+
+            if (useCloud && currentUser && db) {
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'geodrops');
+                await addDoc(colRef, sample1);
+                await addDoc(colRef, sample2);
+            } else {
+                capsules.push({ id: crypto.randomUUID(), ...sample1 });
+                capsules.push({ id: crypto.randomUUID(), ...sample2 });
+                renderCapsulesList();
+            }
+            showToast("Spawned 1 unlocked & 1 locked capsule near you!");
+        }
+
+        document.getElementById('seed-demo-btn').addEventListener('click', seedInitialDemoCapsules);
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            requestLiveGps();
+            initCloudStorage();
+        });
+    </script>
+</body>
+</html>
